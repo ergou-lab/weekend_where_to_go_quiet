@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>周末去哪_安静版</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏕️ 周末去哪</h1>
+            <p class="subtitle">随机选一个周边农村，说走就走，不规划，不纠结</p>
+        </header>
+
+        <main>
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="city">出发城市</label>
+                    <input type="text" id="city" placeholder="例如: 上海、杭州、北京" value="上海">
+                </div>
+
+                <div class="input-row">
+                    <div class="input-group">
+                        <label for="maxDuration">最大车程</label>
+                        <select id="maxDuration">
+                            <option value="60">1小时</option>
+                            <option value="90">1.5小时</option>
+                            <option value="120" selected>2小时</option>
+                            <option value="180">3小时</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button id="pickBtn" class="pick-btn">
+                    <span class="btn-text">🎲 随机选一个</span>
+                </button>
+            </div>
+
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>正在探索...</p>
+            </div>
+
+            <div id="result" class="result hidden">
+                <div class="result-header">
+                    <h2>📍 今日目的地</h2>
+                </div>
+                <div class="result-body">
+                    <h3 id="destName"></h3>
+                    <p class="dest-info">
+                        <span id="destDistance" class="badge"></span>
+                        <span id="destDuration" class="badge"></span>
+                    </p>
+                    <p id="destCoords" class="coords"></p>
+                    <a id="mapLink" href="#" target="_blank" class="map-link">🗺️ 在地图中查看</a>
+                </div>
+            </div>
+
+            <div id="error" class="error hidden">
+                <p id="errorMsg"></p>
+            </div>
+        </main>
+
+        <footer>
+            <p>需要配置高德地图 API Key 才能使用完整功能</p>
+            <p class="small">API Key 不会上传到任何服务器</p>
+        </footer>
+    </div>
+
+    <script>
+        const pickBtn = document.getElementById('pickBtn');
+        const cityInput = document.getElementById('city');
+        const maxDurationSelect = document.getElementById('maxDuration');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        const error = document.getElementById('error');
+
+        pickBtn.addEventListener('click', async () => {
+            const city = cityInput.value.trim();
+            if (!city) {
+                showError('请输入城市名');
+                return;
+            }
+
+            hideAll();
+            show(loading);
+
+            try {
+                const response = await fetch('/api/pick', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        city: city,
+                        maxDuration: parseInt(maxDurationSelect.value)
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || '请求失败');
+                }
+
+                document.getElementById('destName').textContent = data.name;
+                document.getElementById('destDistance').textContent = `🚗 ${(data.distance / 1000).toFixed(1)} 公里`;
+                document.getElementById('destDuration').textContent = `⏱️ 约 ${Math.floor(data.duration / 60)} 小时 ${data.duration % 60} 分钟`;
+                document.getElementById('destCoords').textContent = `📌 坐标: ${data.lat?.toFixed(4)}, ${data.lon?.toFixed(4)}`;
+                document.getElementById('mapLink').href = `https://uri.amap.com/marker?position=${data.lon},${data.lat}&name=${encodeURIComponent(data.name)}`;
+
+                hideAll();
+                show(result);
+            } catch (err) {
+                showError(err.message);
+            }
+        });
+
+        function show(el) { el.classList.remove('hidden'); }
+        function hide(el) { el.classList.add('hidden'); }
+        function hideAll() { [loading, result, error].forEach(hide); }
+        function showError(msg) {
+            document.getElementById('errorMsg').textContent = msg;
+            hideAll();
+            show(error);
+        }
+    </script>
+</body>
+</html>
